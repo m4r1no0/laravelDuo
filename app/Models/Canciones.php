@@ -1,82 +1,141 @@
 <?php
 
-namespace App\Models;
+namespace App\Http\Controllers;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Canciones;
+use App\Models\Albumes;
+use App\Models\Artistas;
+use App\Models\Generos;
+use App\Models\Instrumentos;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
-class Song extends Model
+class SongController extends Controller
 {
-    use HasFactory;
-
-    protected $fillable = [
-        'title',
-        'album_id',
-        'artist_id',
-        'genre_id',
-        'duration',
-        'track_number',
-        'audio_file',
-        'lyrics'
-    ];
-
-    // Relaciones
-    public function artist()
+    public function index()
     {
-        return $this->belongsTo(Artist::class);
+        $songs = Canciones::with(['artist', 'album', 'genre'])->latest()->get();
+        return view('songs.index', compact('songs'));
     }
 
-    public function album()
+    public function create()
     {
-        return $this->belongsTo(Album::class);
+        $artists = Artistas::all();
+        $albums = Albumes::all();
+        $genres = Generos::all();
+        $instruments = Instrumentos::all();
+        
+        return view('songs.create', compact('artists', 'albums', 'genres', 'instruments'));
     }
 
-    public function genre()
+    public function store(Request $request)
     {
-        return $this->belongsTo(Genre::class);
-    }
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'album_id' => 'required|exists:albums,id',
+            'artist_id' => 'required|exists:artists,id',
+            'genre_id' => 'required|exists:genres,id',
+            'duration' => 'required|integer|min:1',
+            'track_number' => 'required|integer|min:1',
+            'audio_file' => 'nullable|file|mimes:mp3,wav,ogg|max:10240', // 10MB
+            'lyrics' => 'nullable|string',
+            'instruments' => 'nullable|array',
+            'instruments.*' => 'exists:instruments,id'
+        ]);
 
-    public function playlists()
-    {
-        return $this->belongsToMany(Playlist::class, 'playlist_song')
-                    ->withPivot('position')
-                    ->withTimestamps();
-    }
-
-    public function favorites()
-    {
-        return $this->hasMany(Favorite::class);
-    }
-
-    public function instruments()
-    {
-        return $this->belongsToMany(Instrument::class, 'song_instrument');
-    }
-
-    // Accesores
-    public function getDurationFormattedAttribute()
-    {
-        $minutes = floor($this->duration / 60);
-        $seconds = $this->duration % 60;
-        return sprintf('%d:%02d', $minutes, $seconds);
-    }
-
-    public function getIsFavoriteAttribute()
-    {
-        if (auth()->check()) {
-            return $this->favorites()->where('user_id', auth()->id())->exists();
+        if ($request->hasFile('audio_file')) {
+            $validated['audio_file'] = $request->file('audio_file')->store('songs', 'public');
         }
-        return false;
+
+        $song = Canciones::create($validated);
+
+        // Sincronizar instrumentos
+        if ($request->has('instruments')) {
+            $song->instruments()->sync($request->instruments);
+        }
+
+        return redirect()->route('songs.index')->with('success', 'Canción creada exitosamente.');
     }
 
-    // Scopes
-    public function scopePopular($query)
+    public function show(Canciones $song)
     {
-        return $query->orderBy('plays_count', 'desc');
+        $song->load(['artist', 'album', 'genre', 'instruments', 'playlists']);
+        return view('songs.show', compact('song'));
     }
 
-    public function scopeByGenre($query, $genreId)
+    public function edit(Canciones $song)
     {
-        return $query->where('genre_id', $genreId);
+        $artists = Artistas::all();
+        $albums = Albumes::all();
+        $genres = Generos::all();
+        $instruments = Instrumentos::all();
+        
+        return view('songs.edit', compact('song', 'artists', 'albums', 'genres', 'instruments'));
+    }
+
+    public function update(Request $request, Canciones $song)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'album_id' => 'required|exists:albums,id',
+            'artist_id' => 'required|exists:artists,id',
+            'genre_id' => 'required|exists:genres,id',
+            'duration' => 'required|integer|min:1',
+            'track_number' => 'required|integer|min:1',
+            'audio_file' => 'nullable|file|mimes:mp3,wav,ogg|max:10240',
+            'lyrics' => 'nullable|string',
+            'instruments' => 'nullable|array',
+            'instruments.*' => 'exists:instruments,id'
+        ]);
+
+        if ($request->hasFile('audio_file')) {
+            // Eliminar archivo anterior
+            if ($song->audio_file) {
+                Storage::disk('public')->delete($song->audio_file);
+            }
+            $validated['audio_file'] = $request->file('audio_file')->store('songs', 'public');
+        }
+
+        $song->update($validated);
+
+        // Sincronizar instrumentos
+        $song->instruments()->sync($request->instruments ?? []);
+
+        return redirect()->route('songs.index')->with('success', 'Canción actualizada exitosamente.');
+    }
+
+    public function destroy(Canciones $song)
+    {
+        if ($song->audio_file) {
+            Storage::disk('public')->delete($song->audio_file);
+        }
+
+        $song->delete();
+
+        return redirect()->route('songs.index')->with('success', 'Canción eliminada exitosamente.');
+    }
+
+    public function incrementPlays(Canciones $song)
+    {
+        $song->increment('plays_count');
+        return response()->json(['plays_count' => $song->plays_count]);
+    }
+
+    public function toggleFavorite(Canciones $song)
+    {
+        $user = auth()->user();
+        
+        if ($song->is_favorite) {
+            $song->favorites()->where('user_id', $user->id)->delete();
+            $message = 'Canción removida de favoritos';
+        } else {
+            $song->favorites()->create(['user_id' => $user->id]);
+            $message = 'Canción agregada a favoritos';
+        }
+
+        return response()->json([
+            'is_favorite' => !$song->is_favorite,
+            'message' => $message
+        ]);
     }
 }
