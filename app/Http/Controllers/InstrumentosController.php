@@ -2,64 +2,62 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Instrumentos;
+use App\Models\Instrument;
 use Illuminate\Http\Request;
 
-class InstrumentosController extends Controller
+class InstrumentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $query = Instrument::withCount('songs');
+        
+        if ($request->has('type') && $request->type) {
+            $query->where('type', $request->type);
+        }
+        
+        $instruments = $query->latest()->get();
+        return view('instruments.index', compact('instruments'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
+        return view('instruments.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:instruments',
+            'type' => 'required|string|in:cuerda,viento,percusion,electrico',
+            'description' => 'nullable|string'
+        ]);
+
+        Instrument::create($validated);
+
+        return redirect()->route('instruments.index')->with('success', 'Instrumento creado exitosamente.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Instrumentos $instrumentos)
+    public function edit(Instrument $instrument)
     {
-        //
+        return view('instruments.edit', compact('instrument'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Instrumentos $instrumentos)
+    public function update(Request $request, Instrument $instrument)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:instruments,name,' . $instrument->id,
+            'type' => 'required|string|in:cuerda,viento,percusion,electrico',
+            'description' => 'nullable|string'
+        ]);
+
+        $instrument->update($validated);
+
+        return redirect()->route('instruments.index')->with('success', 'Instrumento actualizado exitosamente.');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Instrumentos $instrumentos)
+    public function destroy(Instrument $instrument)
     {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Instrumentos $instrumentos)
-    {
-        //
+        $instrument->delete();
+        return redirect()->route('instruments.index')->with('success', 'Instrumento eliminado exitosamente.');
     }
 }
