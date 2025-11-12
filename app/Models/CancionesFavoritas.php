@@ -2,16 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class CancionesFavoritas extends Model
+class Favorite extends Model
 {
-    //
-    public function user() {
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'song_id'
+    ];
+
+    // Relaciones
+    public function user()
+    {
         return $this->belongsTo(User::class);
     }
-    
-    public function song() {
+
+    public function song()
+    {
         return $this->belongsTo(Song::class);
     }
 }
