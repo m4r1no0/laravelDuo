@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Favorite;
+use App\Models\CancionesFavoritas;
 use Illuminate\Http\Request;
 
 class FavoriteController extends Controller
 {
     public function index()
     {
-        $favorites = Favorite::with('song.artist')
+        $favorites = CancionesFavoritas::with('song.artist')
             ->where('user_id', auth()->id())
             ->latest()
             ->get();

@@ -9,7 +9,7 @@ class GenreController extends Controller
 {
     public function index()
     {
-        $genres = Genre::withCount('songs')->latest()->get();
+        $genres = Generos::withCount('songs')->latest()->get();
         return view('genres.index', compact('genres'));
     }
 
@@ -26,17 +26,17 @@ class GenreController extends Controller
             'color' => 'nullable|string|max:7'
         ]);
 
-        Genero::create($validated);
+        Generos::create($validated);
 
         return redirect()->route('genres.index')->with('success', 'Género creado exitosamente.');
     }
 
-    public function edit(Genero $genre)
+    public function edit(Generos $genre)
     {
         return view('genres.edit', compact('genre'));
     }
 
-    public function update(Request $request, Genero $genre)
+    public function update(Request $request, Generos $genre)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:genres,name,' . $genre->id,
@@ -49,7 +49,7 @@ class GenreController extends Controller
         return redirect()->route('genres.index')->with('success', 'Género actualizado exitosamente.');
     }
 
-    public function destroy(Genero $genre)
+    public function destroy(Generos $genre)
     {
         $genre->delete();
         return redirect()->route('genres.index')->with('success', 'Género eliminado exitosamente.');

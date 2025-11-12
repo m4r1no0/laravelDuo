@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Instrument;
+use App\Models\Instrumentos;
 use Illuminate\Http\Request;
 
 class InstrumentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Instrument::withCount('songs');
+        $query = Instrumentos::withCount('songs');
         
         if ($request->has('type') && $request->type) {
             $query->where('type', $request->type);
@@ -32,17 +32,17 @@ class InstrumentController extends Controller
             'description' => 'nullable|string'
         ]);
 
-        Instrument::create($validated);
+        Instrumentos::create($validated);
 
         return redirect()->route('instruments.index')->with('success', 'Instrumento creado exitosamente.');
     }
 
-    public function edit(Instrument $instrument)
+    public function edit(Instrumentos $instrument)
     {
         return view('instruments.edit', compact('instrument'));
     }
 
-    public function update(Request $request, Instrument $instrument)
+    public function update(Request $request, Instrumentos $instrument)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:instruments,name,' . $instrument->id,
@@ -55,7 +55,7 @@ class InstrumentController extends Controller
         return redirect()->route('instruments.index')->with('success', 'Instrumento actualizado exitosamente.');
     }
 
-    public function destroy(Instrument $instrument)
+    public function destroy(Instrumentos $instrument)
     {
         $instrument->delete();
         return redirect()->route('instruments.index')->with('success', 'Instrumento eliminado exitosamente.');

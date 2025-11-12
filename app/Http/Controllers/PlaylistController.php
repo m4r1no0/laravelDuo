@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Playlist;
-use App\Models\Song;
+use App\Models\Canciones;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,7 +22,7 @@ class PlaylistController extends Controller
 
     public function create()
     {
-        $songs = Song::all();
+        $songs = Canciones::all();
         return view('playlists.create', compact('songs'));
     }
 
@@ -146,7 +146,7 @@ class PlaylistController extends Controller
         return redirect()->back()->with('success', 'Canción agregada a la playlist.');
     }
 
-    public function removeSong(Playlist $playlist, Song $song)
+    public function removeSong(Playlist $playlist, Canciones $song)
     {
         $playlist->removeSong($song->id);
 
